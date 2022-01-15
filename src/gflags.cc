@@ -90,6 +90,7 @@
 #include "config.h"
 #include "gflags/gflags.h"
 
+#include <any>
 #include <cassert>
 #include <cctype>
 #include <cerrno>
@@ -233,6 +234,7 @@ class FlagValue {
   bool Validate(const char* flagname, ValidateFnProto validate_fn_proto) const;
 
   void* const value_buffer_;          // points to the buffer holding our data
+  std::any any_val_;
   const int8 type_;                   // how to interpret value_
   const bool owns_value_;             // whether to free value on destruct
 

@@ -78,6 +78,7 @@
 #ifndef GFLAGS_GFLAGS_H_
 #define GFLAGS_GFLAGS_H_
 
+#include <atomic>
 #include <string>
 #include <vector>
 
@@ -459,6 +460,12 @@ GFLAGS_DECLARE_FLAG_REGISTERER_CTOR(int64);
 GFLAGS_DECLARE_FLAG_REGISTERER_CTOR(uint64);
 GFLAGS_DECLARE_FLAG_REGISTERER_CTOR(double);
 GFLAGS_DECLARE_FLAG_REGISTERER_CTOR(std::string);
+GFLAGS_DECLARE_FLAG_REGISTERER_CTOR(std::atomic<bool>);
+GFLAGS_DECLARE_FLAG_REGISTERER_CTOR(std::atomic<int32>);
+GFLAGS_DECLARE_FLAG_REGISTERER_CTOR(std::atomic<uint32>);
+GFLAGS_DECLARE_FLAG_REGISTERER_CTOR(std::atomic<int64>);
+GFLAGS_DECLARE_FLAG_REGISTERER_CTOR(std::atomic<uint64>);
+GFLAGS_DECLARE_FLAG_REGISTERER_CTOR(std::atomic<double>);
 
 #undef GFLAGS_DECLARE_FLAG_REGISTERER_CTOR
 
@@ -579,7 +586,7 @@ class StringFlagDestructor {
   void *current_storage_;
   void *defvalue_storage_;
 
-public: 
+public:
 
   StringFlagDestructor(void *current, void *defvalue)
   : current_storage_(current), defvalue_storage_(defvalue) {}
