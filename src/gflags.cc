@@ -317,6 +317,8 @@ DEFINE_FLAG_TRAITS(std::string, FV_STRING);
 
 #define PRINT(a) printf(#a ": " #a);
 
+#define MAP_ALL(f) MAP(f, ALL_FV_TYPES)
+
 #define VALUE_AS_PTR(fv_type) reinterpret_cast<T_##fv_type*>(value_buffer_)
 
 #define HANDLE_CASE(f, fv_type) \
@@ -324,18 +326,27 @@ DEFINE_FLAG_TRAITS(std::string, FV_STRING);
     f(fv_type);                 \
     break;
 
-#define DELETE_VALUE(fv_type) delete VALUE_AS_PTR(fv_type);
-#define HANDLE_CASE_DELETE(fv_type) HANDLE_CASE(fv_type, DELETE_VALUE)
-
 #define HANDLE_ALL_CASES(f) MAP_ARG(HANDLE_CASE, f, ALL_FV_TYPES)
+
+#define DELETE_VALUE(fv_type) delete VALUE_AS_PTR(fv_type)
 
 #define INVOKE_VALIDATOR(fv_type)                                                 \
   return reinterpret_cast<bool (*)(const char*, T_##fv_type)>(validate_fn_proto)( \
-      flagname, VALUE_AS(T_##fv_type));
+      flagname, VALUE_AS(T_##fv_type))
 
-#define HANDLE_CASE_INVOKE_VALIDATOR(fv_type) HANDLE_CASE(fv_type, INVOKE_VALIDATOR)
+#define COMPARE_OTHER_VALUE(fv_type) return VALUE_AS(T_##fv_type) == OTHER_VALUE_AS(x, T_##fv_type)
 
-#define MAP_ALL(f) MAP(f, ALL_FV_TYPES)
+#define COPY_FROM_OTHER_VALUE(fv_type) SET_VALUE_AS(T_##fv_type, OTHER_VALUE_AS(x, T_##fv_type))
+
+#define CREATE_NEW(fv_type) return new FlagValue(new T_##fv_type fv_type##_DEF, true)
+
+#define FV_BOOL_DEF (false)
+#define FV_INT32_DEF (0)
+#define FV_UINT32_DEF (0)
+#define FV_INT64_DEF (0)
+#define FV_UINT64_DEF (0)
+#define FV_DOUBLE_DEF (0.0)
+#define FV_STRING_DEF
 
 #undef DEFINE_FLAG_TRAITS
 
@@ -499,26 +510,14 @@ bool FlagValue::Equal(const FlagValue& x) const {
   if (type_ != x.type_)
     return false;
   switch (type_) {
-    case FV_BOOL:   return VALUE_AS(bool) == OTHER_VALUE_AS(x, bool);
-    case FV_INT32:  return VALUE_AS(int32) == OTHER_VALUE_AS(x, int32);
-    case FV_UINT32: return VALUE_AS(uint32) == OTHER_VALUE_AS(x, uint32);
-    case FV_INT64:  return VALUE_AS(int64) == OTHER_VALUE_AS(x, int64);
-    case FV_UINT64: return VALUE_AS(uint64) == OTHER_VALUE_AS(x, uint64);
-    case FV_DOUBLE: return VALUE_AS(double) == OTHER_VALUE_AS(x, double);
-    case FV_STRING: return VALUE_AS(string) == OTHER_VALUE_AS(x, string);
+    HANDLE_ALL_CASES(COMPARE_OTHER_VALUE);
     default: assert(false); return false;  // unknown type
   }
 }
 
 FlagValue* FlagValue::New() const {
   switch (type_) {
-    case FV_BOOL:   return new FlagValue(new bool(false), true);
-    case FV_INT32:  return new FlagValue(new int32(0), true);
-    case FV_UINT32: return new FlagValue(new uint32(0), true);
-    case FV_INT64:  return new FlagValue(new int64(0), true);
-    case FV_UINT64: return new FlagValue(new uint64(0), true);
-    case FV_DOUBLE: return new FlagValue(new double(0.0), true);
-    case FV_STRING: return new FlagValue(new string, true);
+    HANDLE_ALL_CASES(CREATE_NEW);
     default: assert(false); return NULL;  // unknown type
   }
 }
@@ -526,13 +525,7 @@ FlagValue* FlagValue::New() const {
 void FlagValue::CopyFrom(const FlagValue& x) {
   assert(type_ == x.type_);
   switch (type_) {
-    case FV_BOOL:   SET_VALUE_AS(bool, OTHER_VALUE_AS(x, bool));      break;
-    case FV_INT32:  SET_VALUE_AS(int32, OTHER_VALUE_AS(x, int32));    break;
-    case FV_UINT32: SET_VALUE_AS(uint32, OTHER_VALUE_AS(x, uint32));  break;
-    case FV_INT64:  SET_VALUE_AS(int64, OTHER_VALUE_AS(x, int64));    break;
-    case FV_UINT64: SET_VALUE_AS(uint64, OTHER_VALUE_AS(x, uint64));  break;
-    case FV_DOUBLE: SET_VALUE_AS(double, OTHER_VALUE_AS(x, double));  break;
-    case FV_STRING: SET_VALUE_AS(string, OTHER_VALUE_AS(x, string));  break;
+    HANDLE_ALL_CASES(COPY_FROM_OTHER_VALUE);
     default: assert(false);  // unknown type
   }
 }
