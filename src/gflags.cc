@@ -258,6 +258,84 @@ DEFINE_FLAG_TRAITS(int64, FV_INT64);
 DEFINE_FLAG_TRAITS(uint64, FV_UINT64);
 DEFINE_FLAG_TRAITS(double, FV_DOUBLE);
 DEFINE_FLAG_TRAITS(std::string, FV_STRING);
+#define T_FV_BOOL bool
+#define T_FV_INT32 int32
+#define T_FV_UINT32 uint32
+#define T_FV_INT64 int64
+#define T_FV_UINT64 uint64
+#define T_FV_DOUBLE double
+#define T_FV_STRING std::string
+
+#define ALL_FV_TYPES FV_BOOL, FV_INT32, FV_UINT32, FV_INT64, FV_UINT64, FV_DOUBLE, FV_STRING
+
+#define ALL_FV_TYPES_NO_STRING FV_BOOL, FV_INT32, FV_UINT32, FV_INT64, FV_UINT64, FV_DOUBLE
+
+#define EVAL0(...) __VA_ARGS__
+#define EVAL1(...) EVAL0(EVAL0(EVAL0(__VA_ARGS__)))
+#define EVAL2(...) EVAL1(EVAL1(EVAL1(__VA_ARGS__)))
+#define EVAL3(...) EVAL2(EVAL2(EVAL2(__VA_ARGS__)))
+#define EVAL4(...) EVAL3(EVAL3(EVAL3(__VA_ARGS__)))
+#define EVAL(...) EVAL4(EVAL4(EVAL4(__VA_ARGS__)))
+
+#define MAP_END(...)
+#define MAP_OUT
+#define MAP_COMMA ,
+
+#define MAP_GET_END2() 0, MAP_END
+#define MAP_GET_END1(...) MAP_GET_END2
+#define MAP_GET_END(...) MAP_GET_END1
+#define MAP_NEXT0(test, next, ...) next MAP_OUT
+#define MAP_NEXT1(test, next) MAP_NEXT0(test, next, 0)
+#define MAP_NEXT(test, next) MAP_NEXT1(MAP_GET_END test, next)
+
+#define MAP0(f, x, peek, ...) f(x) MAP_NEXT(peek, MAP1)(f, peek, __VA_ARGS__)
+#define MAP1(f, x, peek, ...) f(x) MAP_NEXT(peek, MAP0)(f, peek, __VA_ARGS__)
+
+#define MAP_LIST_NEXT1(test, next) MAP_NEXT0(test, MAP_COMMA next, 0)
+#define MAP_LIST_NEXT(test, next) MAP_LIST_NEXT1(MAP_GET_END test, next)
+
+#define MAP_LIST0(f, x, peek, ...) f(x) MAP_LIST_NEXT(peek, MAP_LIST1)(f, peek, __VA_ARGS__)
+#define MAP_LIST1(f, x, peek, ...) f(x) MAP_LIST_NEXT(peek, MAP_LIST0)(f, peek, __VA_ARGS__)
+
+#define MAP_ARG_NEXT1(test, next) MAP_NEXT0(test, next, 0)
+#define MAP_ARG_NEXT(test, next) MAP_ARG_NEXT1(MAP_GET_END test, next)
+
+#define MAP_ARG0(f, a, x, peek, ...) f(a,x) MAP_ARG_NEXT(peek, MAP_ARG1)(f, a, peek, __VA_ARGS__)
+#define MAP_ARG1(f, a, x, peek, ...) f(a,x) MAP_ARG_NEXT(peek, MAP_ARG0)(f, a, peek, __VA_ARGS__)
+#define MAP_ARG(f,a, ...) EVAL(MAP_ARG1(f,a, __VA_ARGS__, ()()(), ()()(), ()()(), 0))
+
+/**
+ * Applies the function macro `f` to each of the remaining parameters.
+ */
+#define MAP(f, ...) EVAL(MAP1(f, __VA_ARGS__, ()()(), ()()(), ()()(), 0))
+
+/**
+ * Applies the function macro `f` to each of the remaining parameters and
+ * inserts commas between the results.
+ */
+#define MAP_LIST(f, ...) EVAL(MAP_LIST1(f, __VA_ARGS__, ()()(), ()()(), ()()(), 0))
+
+#define PRINT(a) printf(#a ": " #a);
+
+#define VALUE_AS_PTR(fv_type) reinterpret_cast<T_##fv_type*>(value_buffer_)
+
+#define HANDLE_CASE(f, fv_type) \
+  case fv_type:                 \
+    f(fv_type);                 \
+    break;
+
+#define DELETE_VALUE(fv_type) delete VALUE_AS_PTR(fv_type);
+#define HANDLE_CASE_DELETE(fv_type) HANDLE_CASE(fv_type, DELETE_VALUE)
+
+#define HANDLE_ALL_CASES(f) MAP_ARG(HANDLE_CASE, f, ALL_FV_TYPES)
+
+#define INVOKE_VALIDATOR(fv_type)                                                 \
+  return reinterpret_cast<bool (*)(const char*, T_##fv_type)>(validate_fn_proto)( \
+      flagname, VALUE_AS(T_##fv_type));
+
+#define HANDLE_CASE_INVOKE_VALIDATOR(fv_type) HANDLE_CASE(fv_type, INVOKE_VALIDATOR)
+
+#define MAP_ALL(f) MAP(f, ALL_FV_TYPES)
 
 #undef DEFINE_FLAG_TRAITS
 
@@ -280,15 +358,8 @@ FlagValue::~FlagValue() {
   if (!owns_value_) {
     return;
   }
-  switch (type_) {
-    case FV_BOOL: delete reinterpret_cast<bool*>(value_buffer_); break;
-    case FV_INT32: delete reinterpret_cast<int32*>(value_buffer_); break;
-    case FV_UINT32: delete reinterpret_cast<uint32*>(value_buffer_); break;
-    case FV_INT64: delete reinterpret_cast<int64*>(value_buffer_); break;
-    case FV_UINT64: delete reinterpret_cast<uint64*>(value_buffer_); break;
-    case FV_DOUBLE: delete reinterpret_cast<double*>(value_buffer_); break;
-    case FV_STRING: delete reinterpret_cast<string*>(value_buffer_); break;
-  }
+
+  switch (type_) { HANDLE_ALL_CASES(DELETE_VALUE); }
 }
 
 bool FlagValue::ParseFrom(const char* value) {
@@ -400,27 +471,7 @@ string FlagValue::ToString() const {
 bool FlagValue::Validate(const char* flagname,
                          ValidateFnProto validate_fn_proto) const {
   switch (type_) {
-    case FV_BOOL:
-      return reinterpret_cast<bool (*)(const char*, bool)>(
-          validate_fn_proto)(flagname, VALUE_AS(bool));
-    case FV_INT32:
-      return reinterpret_cast<bool (*)(const char*, int32)>(
-          validate_fn_proto)(flagname, VALUE_AS(int32));
-    case FV_UINT32:
-      return reinterpret_cast<bool (*)(const char*, uint32)>(
-          validate_fn_proto)(flagname, VALUE_AS(uint32));
-    case FV_INT64:
-      return reinterpret_cast<bool (*)(const char*, int64)>(
-          validate_fn_proto)(flagname, VALUE_AS(int64));
-    case FV_UINT64:
-      return reinterpret_cast<bool (*)(const char*, uint64)>(
-          validate_fn_proto)(flagname, VALUE_AS(uint64));
-    case FV_DOUBLE:
-      return reinterpret_cast<bool (*)(const char*, double)>(
-          validate_fn_proto)(flagname, VALUE_AS(double));
-    case FV_STRING:
-      return reinterpret_cast<bool (*)(const char*, const string&)>(
-          validate_fn_proto)(flagname, VALUE_AS(string));
+    HANDLE_ALL_CASES(INVOKE_VALIDATOR);
     default:
       assert(false);  // unknown type
       return false;
